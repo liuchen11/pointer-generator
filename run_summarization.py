@@ -45,7 +45,7 @@ tf.app.flags.DEFINE_float('max_grad_norm', 2.0, 'for gradient clipping')
 tf.app.flags.DEFINE_boolean('pointer_gen', True, 'If True, use pointer-generator model. If False, use baseline model.')
 
 # Coverage hyperparameters
-tf.app.flags.DEFINE_boolean('coverage', False, 'Use coverage mechanism. Note, the experiments reported in the ACL paper train WITHOUT coverage until converged, and then train for a short phase WITH coverage afterwards. i.e. to reproduce the results in the ACL paper, turn this off for most of training then turn on for a short phase at the end.')
+tf.app.flags.DEFINE_boolean('coverage', True, 'Use coverage mechanism. Note, the experiments reported in the ACL paper train WITHOUT coverage until converged, and then train for a short phase WITH coverage afterwards. i.e. to reproduce the results in the ACL paper, turn this off for most of training then turn on for a short phase at the end.')
 tf.app.flags.DEFINE_float('cov_loss_wt', 1.0, 'Weight of coverage loss (lambda in the paper). If zero, then no incentive to minimize coverage loss.')
 tf.app.flags.DEFINE_boolean('convert_to_coverage_model', False, 'Convert a non-coverage model to a coverage model. Turn this on and run in train mode. Your current model will be copied to a new version (same name with _cov_init appended) that will be ready to run with coverage flag turned on, for the coverage training stage.')
 
@@ -112,14 +112,14 @@ def setup_training(model, batcher):
     if FLAGS.convert_to_coverage_model:
       assert FLAGS.coverage, "To convert your non-coverage model to a coverage model, run with convert_to_coverage_model=True and coverage=True"
       convert_to_coverage_model()
-    saver = tf.train.Saver(max_to_keep=1) # only keep 1 checkpoint at a time
+    saver = tf.train.Saver(max_to_keep=100000) # only save a lot of ckpt
 
   sv = tf.train.Supervisor(logdir=train_dir,
                      is_chief=True,
                      saver=saver,
                      summary_op=None,
-                     save_summaries_secs=60, # save summaries for tensorboard every 60 secs
-                     save_model_secs=60, # checkpoint every 60 secs
+                     save_summaries_secs=3600, # save summaries for tensorboard every hour
+                     save_model_secs=3600, # checkpoint every hour
                      global_step=model.global_step)
   summary_writer = sv.summary_writer
   tf.logging.info("Preparing or waiting for session...")
@@ -135,16 +135,22 @@ def setup_training(model, batcher):
 def run_training(model, batcher, sess_context_manager, sv, summary_writer):
   """Repeatedly runs training iterations, logging loss to screen and writing summaries"""
   tf.logging.info("starting run_training")
+  model_dump_folder=FLAGS.log_root+os.sep+FLAGS.exp_name+os.sep+'details'
   with sess_context_manager as sess:
+    batch_idx = 0
+    if not os.path.exists(model_dump_folder):
+      os.makedirs(model_dump_folder)
     while True: # repeats until interrupted
       batch = batcher.next_batch()
-
+      batch_idx += 1
       tf.logging.info('running training step...')
       t0=time.time()
       results = model.run_train_step(sess, batch)
       t1=time.time()
       tf.logging.info('seconds for training step: %.3f', t1-t0)
-
+      # if batch_idx % 500:
+      #  saver = tf.train.Saver()
+      #  saver.save(tf.get_default_session(), model_dump_folder+os.sep+'%d.ckpt'%batch_idx)
       loss = results['loss']
       tf.logging.info('loss: %f', loss) # print the loss to screen
       if FLAGS.coverage:

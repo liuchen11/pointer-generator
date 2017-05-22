@@ -4,6 +4,7 @@ import glob
 import random
 import struct
 import csv
+import tensorflow as tf
 from tensorflow.core.example import example_pb2
 
 # <s> and </s> are used in the data files to segment the abstracts into sentences. They don't receive vocab ids.
@@ -193,6 +194,7 @@ def outputids2words(id_list, vocab, article_oovs):
     try:
       w = vocab.id2word(i) # might be [UNK]
     except ValueError as e: # w is OOV
+      FLAGS = tf.app.flags.FLAGS
       assert FLAGS.pointer_gen, "Error: model produced a word ID that isn't in the vocabulary"
       article_oov_idx = i - vocab.size()
       try:
