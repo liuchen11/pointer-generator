@@ -100,12 +100,10 @@ def main(unused_argv):
             hps_dict[key]=val # add it to the dict
     hps=namedtuple("HParams", hps_dict.keys())(**hps_dict)    
 
-    batcher=Batcher(FLAGS.data_path,vocab,hps,single_pass=True)
     model=SummarizationModel(hps,vocab)
 
     result_map=[]
     model.build_graph()
-    saver=tf.train.Saver(max_to_keep=3)
     sess=tf.Session(config=get_config())
     trained_model_folder=os.path.join(FLAGS.log_root,'train')
 
@@ -114,6 +112,8 @@ def main(unused_argv):
 
     for ckpt_file in ckpt_list:
         load_ckpt(saver,sess,os.path.join(trained_model_folder,ckpt_file))
+    	batcher=Batcher(FLAGS.data_path,vocab,hps,single_pass=True)
+    	saver=tf.train.Saver(max_to_keep=3)
         avg_loss=eval(model,batcher,vocab,sess)
         print('check point:%s, Average loss in validation set: %.3f'%(ckpt_file, avg_loss))
         result_map.append([ckpt_file,avg_loss])
