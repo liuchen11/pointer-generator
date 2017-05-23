@@ -12,6 +12,8 @@ from data import Vocab
 from batcher import Batcher
 from model import SummarizationModel
 
+FLAGS=tf.app.flags.FLAGS
+
 # Where to find data
 tf.app.flags.DEFINE_string('data_path', '', 'Path expression to tf.Example datafiles. Can include wildcards to access multiple datafiles.')
 tf.app.flags.DEFINE_string('vocab_path', '', 'Path expression to text vocabulary file.')
@@ -65,7 +67,7 @@ def load_ckpt(saver, sess, ckpt):
     saved_path=saver.restore(sess, ckpt)
     return saved_path
 
-def eval(model,batcher,vocab):
+def eval(model,batcher,vocab,sess):
     loss_list=[]
     while True:
         batch=batcher.next_batch()
@@ -105,13 +107,14 @@ def main(unused_argv):
     model.build_graph()
     saver=tf.train.Saver(max_to_keep=3)
     sess=tf.Session(config=get_config())
-    trained_model_folder=os.join(FLAGS.log_root,'train')
-    evaluation_folder=os.join(FLAGS.log_root,'eval')
+    trained_model_folder=os.path.join(FLAGS.log_root,'train')
+
+    evaluation_folder=os.path.join(FLAGS.log_root,'eval')
     ckpt_list=get_ckpt_list(trained_model_folder)
 
     for ckpt_file in ckpt_list:
-        load_ckpt(saver,sess,os.join(trained_model_folder,ckpt_file))
-        avg_loss=eval(model,batcher,vocab)
+        load_ckpt(saver,sess,os.path.join(trained_model_folder,ckpt_file))
+        avg_loss=eval(model,batcher,vocab,sess)
         print('check point:%s, Average loss in validation set: %.3f'%(ckpt_file, avg_loss))
         result_map.append([ckpt_file,avg_loss])
 
