@@ -111,9 +111,9 @@ def main(unused_argv):
     ckpt_list=get_ckpt_list(trained_model_folder)
 
     for ckpt_file in ckpt_list:
+    	saver=tf.train.Saver(max_to_keep=3)
         load_ckpt(saver,sess,os.path.join(trained_model_folder,ckpt_file))
     	batcher=Batcher(FLAGS.data_path,vocab,hps,single_pass=True)
-    	saver=tf.train.Saver(max_to_keep=3)
         avg_loss=eval(model,batcher,vocab,sess)
         print('check point:%s, Average loss in validation set: %.3f'%(ckpt_file, avg_loss))
         result_map.append([ckpt_file,avg_loss])
